@@ -9,7 +9,9 @@ type Term = Int Int
           | Var String
           | Fun String (List Term)
 
-type alias Rule = (Term, List Term)
+type alias Atom = (String, (List Term))
+            
+type alias Rule = (Atom, List Atom)
              
 -- Lexer
 lexeme : Parser a -> Parser a
@@ -115,13 +117,22 @@ function =
 parseTerm : Parser Term
 parseTerm = oneOf [ function, intLit, varLit ]
 
+parseAtom : Parser Atom
+parseAtom =
+    lexeme
+    <| succeed Tuple.pair
+        |= nameLit
+        |= oneOf [ paren <| sepBy "," <| lazy (\_ -> parseTerm)
+                 , succeed []
+                 ]
+            
 parseRule : Parser Rule
 parseRule =
     succeed Tuple.pair
-        |= parseTerm
+        |= parseAtom
         |= oneOf [ succeed identity
                  |. lexeme (symbol ":-")
-                 |= sepBy "," parseTerm
+                 |= sepBy "," parseAtom
                  , succeed []
                  ]
                     
@@ -144,14 +155,17 @@ showTerm term =
         Var v -> v
         Fun functor [] -> functor
         Fun functor args -> functor ++ "("
-                               ++ String.join "," (List.map showTerm args)
+                               ++ String.join ", " (List.map showTerm args)
                                ++ ")"
 
+showAtom : Atom -> String
+showAtom (name, args) = showTerm <| Fun name args
+    
 showRule : Rule -> String
-showRule (head, body) = showTerm head
+showRule (head, body) = showAtom head
                         ++ if body == [] then ""
-                           else ":- " 
-                               ++ String.join "," (List.map showTerm body)
+                           else " :- " 
+                               ++ String.join ", " (List.map showAtom body)
 
 showRules : List Rule -> String
 showRules rules = String.join "." (List.map showRule rules) ++ "."

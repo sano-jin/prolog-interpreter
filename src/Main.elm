@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, button, div, input, text, node, ul, li)
+import Html exposing (Html, button, div, input, text, node, ul, li, textarea)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Parser exposing (run, DeadEnd, Problem (..))
@@ -18,6 +18,7 @@ main = Browser.sandbox { init = init
 -- Model
 type alias Model =
     { inputString : String
+    , rules : List String
     , result : String
     , errors : List DeadEnd
     }
@@ -25,6 +26,7 @@ type alias Model =
 init : Model
 init =
     { inputString = "0"
+    , rules = []
     , result = ""
     , errors = []
     }
@@ -40,8 +42,11 @@ update msg model =
     case msg of
         Eval str -> case run PP.parser str of
                         Ok rules -> { model | errors = []
-                                   , result = PP.showRules rules }
-                        Err err -> { model | errors = err, result = "error" }
+                                    , rules = List.map PP.showRule rules
+                                    , result = "" }
+                        Err err -> { model | errors = err
+                                   , rules = []
+                                   , result = "error" }
                     
         Change str ->
             { model | inputString = str }
@@ -60,12 +65,14 @@ view model =
               ] []
         , css "style.css"
         , div [ class "console" ]
-            [ input [ class "reader"
+            [ textarea [ class "reader"
                     , placeholder "input lambda expression \u{23CE}"
                     , value model.inputString, onInput Change ] []
             , button [ class "submitter"
                      , onClick <| Eval model.inputString ] [ text "run" ]
             , div [] [ text model.result ]
+            , ul [ class "rules" ] 
+                  <| List.map (\rule -> li [] [ text <| rule ++ "." ]) model.rules   
             ]
         ]
     
